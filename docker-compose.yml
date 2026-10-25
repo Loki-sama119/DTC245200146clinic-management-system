@@ -1,8 +1,13 @@
 # ==============================================================================
-# CLINIC MANAGEMENT SYSTEM — LOKI + PROMTAIL CENTRALIZED LOGGING
+# CLINIC MANAGEMENT SYSTEM — DOCKER COMPOSE ORCHESTRATION
+# Học phần: Triển khai và Quản trị Hệ thống Phần mềm
+# Đề tài: Đề 8 — Hệ thống Quản lý Phòng khám / Bệnh viện
 # ==============================================================================
 
 services:
+  # ----------------------------------------------------------------------------
+  # 1. DATABASE TIER: PostgreSQL 16
+  # ----------------------------------------------------------------------------
   postgres:
     image: postgres:16-alpine
     container_name: clinic_postgres
@@ -15,7 +20,18 @@ services:
     volumes:
       - clinic_pgdata:/var/lib/postgresql/data/pgdata
       - ./database/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - backend_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clinic_user} -d ${POSTGRES_DB:-clinic_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
+  # ----------------------------------------------------------------------------
+  # 2. DATABASE MANAGEMENT: pgAdmin 4
+  # ----------------------------------------------------------------------------
   pgadmin:
     image: dpage/pgadmin4:8.4
     container_name: clinic_pgadmin
@@ -28,9 +44,15 @@ services:
       - "5050:5050"
     volumes:
       - clinic_pgadmin_data:/var/lib/pgadmin
+    networks:
+      - backend_net
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
+  # ----------------------------------------------------------------------------
+  # 3. BACKEND TIER: Django + Gunicorn WSGI
+  # ----------------------------------------------------------------------------
   backend:
     build:
       context: ./backend
@@ -43,9 +65,23 @@ services:
       - ./backend:/app
       - backend_static:/app/staticfiles
       - backend_logs:/app/logs
+    networks:
+      - backend_net
+      - frontend_net
+      - monitoring_net
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/api/health/\")'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
+  # ----------------------------------------------------------------------------
+  # 4. FRONTEND TIER: React + Vite SPA
+  # ----------------------------------------------------------------------------
   frontend:
     build:
       context: ./frontend
@@ -54,9 +90,15 @@ services:
     restart: unless-stopped
     volumes:
       - ./frontend:/usr/share/nginx/html:ro
+    networks:
+      - frontend_net
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
+  # ----------------------------------------------------------------------------
+  # 5. REVERSE PROXY & GATEWAY: Nginx
+  # ----------------------------------------------------------------------------
   nginx:
     build:
       context: ./nginx
@@ -68,19 +110,39 @@ services:
     volumes:
       - backend_static:/var/www/static:ro
       - nginx_logs:/var/log/nginx
+    networks:
+      - frontend_net
+      - monitoring_net
     depends_on:
-      - backend
-      - frontend
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
+  # ----------------------------------------------------------------------------
+  # 6. MONITORING: PostgreSQL Exporter
+  # ----------------------------------------------------------------------------
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: clinic_postgres_exporter
     restart: unless-stopped
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-clinic_user}:${POSTGRES_PASSWORD:-clinic_secure_password_2026}@postgres:5432/${POSTGRES_DB:-clinic_db}?sslmode=disable"
+    networks:
+      - backend_net
+      - monitoring_net
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
+  # ----------------------------------------------------------------------------
+  # 7. MONITORING: cAdvisor (Container Metrics)
+  # ----------------------------------------------------------------------------
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: clinic_cadvisor
@@ -94,7 +156,12 @@ services:
     privileged: true
     devices:
       - /dev/kmsg
+    networks:
+      - monitoring_net
 
+  # ----------------------------------------------------------------------------
+  # 8. MONITORING: Prometheus Server
+  # ----------------------------------------------------------------------------
   prometheus:
     image: prom/prometheus:v2.51.0
     container_name: clinic_prometheus
@@ -104,10 +171,21 @@ services:
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - clinic_prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - monitoring_net
     depends_on:
       - postgres-exporter
       - cadvisor
 
+  # ----------------------------------------------------------------------------
+  # 9. MONITORING: Grafana Visualization
+  # ----------------------------------------------------------------------------
   grafana:
     image: grafana/grafana:10.4.0
     container_name: clinic_grafana
@@ -121,10 +199,15 @@ services:
     volumes:
       - clinic_grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - monitoring_net
     depends_on:
       - prometheus
       - loki
 
+  # ----------------------------------------------------------------------------
+  # 10. CENTRALIZED LOGGING: Grafana Loki
+  # ----------------------------------------------------------------------------
   loki:
     image: grafana/loki:2.9.4
     container_name: clinic_loki
@@ -135,7 +218,12 @@ services:
       - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
       - clinic_loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring_net
 
+  # ----------------------------------------------------------------------------
+  # 11. LOG SHIPPER: Promtail
+  # ----------------------------------------------------------------------------
   promtail:
     image: grafana/promtail:2.9.4
     container_name: clinic_promtail
@@ -147,15 +235,31 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     command: -config.file=/etc/promtail/config.yml
+    networks:
+      - monitoring_net
     depends_on:
       - loki
 
+# ------------------------------------------------------------------------------
+# ISOLATED NETWORKS (Hardening: Network Isolation)
+# ------------------------------------------------------------------------------
+networks:
+  frontend_net:
+    driver: bridge
+  backend_net:
+    driver: bridge
+  monitoring_net:
+    driver: bridge
+
+# ------------------------------------------------------------------------------
+# PERSISTENT VOLUMES
+# ------------------------------------------------------------------------------
 volumes:
   clinic_pgdata:
   clinic_pgadmin_data:
+  clinic_grafana_data:
+  clinic_prometheus_data:
+  clinic_loki_data:
   backend_static:
   backend_logs:
   nginx_logs:
-  clinic_prometheus_data:
-  clinic_grafana_data:
-  clinic_loki_data:
