@@ -1,5 +1,5 @@
 # ==============================================================================
-# CLINIC MANAGEMENT SYSTEM — PROMETHEUS + GRAFANA MONITORING
+# CLINIC MANAGEMENT SYSTEM — LOKI + PROMTAIL CENTRALIZED LOGGING
 # ==============================================================================
 
 services:
@@ -123,6 +123,32 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
       - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: clinic_loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - clinic_loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: clinic_promtail
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - nginx_logs:/var/log/nginx:ro
+      - backend_logs:/var/log/backend:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
 
 volumes:
   clinic_pgdata:
@@ -132,3 +158,4 @@ volumes:
   nginx_logs:
   clinic_prometheus_data:
   clinic_grafana_data:
+  clinic_loki_data:
