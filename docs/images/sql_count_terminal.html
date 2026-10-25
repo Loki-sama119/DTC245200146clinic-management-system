@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; padding: 16px; background: #0f172a; width: 950px; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; font-size: 13px; color: #f1f5f9; box-sizing: border-box; }
+  .term { background: #1e1e1e; border: 1px solid #334155; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); overflow: hidden; }
+  .term-header { background: #2d3748; padding: 10px 14px; display: flex; align-items: center; gap: 8px; }
+  .btn { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .btn-r { background: #ef4444; } .btn-y { background: #f59e0b; } .btn-g { background: #10b981; }
+  .term-title { margin-left: 10px; color: #94a3b8; font-size: 12px; }
+  .term-body { padding: 16px; line-height: 1.6; }
+  .prompt { color: #38bdf8; font-weight: bold; }
+  .cmd { color: #facc15; }
+  .res-table { border-collapse: collapse; margin: 10px 0; color: #34d399; }
+  .res-table th, .res-table td { border: 1px solid #475569; padding: 6px 14px; text-align: center; }
+  .res-table th { background: #1e293b; color: #93c5fd; }
+  .summary { color: #94a3b8; font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="term">
+    <div class="term-header">
+      <span class="btn btn-r"></span><span class="btn btn-y"></span><span class="btn btn-g"></span>
+      <span class="term-title">ubuntu@clinic-server: ~/clinic-management (PostgreSQL 16 CLI Verification)</span>
+    </div>
+    <div class="term-body">
+      <div><span class="prompt">ubuntu@clinic-server:~$</span> <span class="cmd">docker compose exec postgres psql -U clinic_user -d clinic_db -c "SELECT (SELECT COUNT(*) FROM users) AS total_users, (SELECT COUNT(*) FROM patients) AS total_patients, (SELECT COUNT(*) FROM doctors) AS total_doctors, (SELECT COUNT(*) FROM appointments) AS total_appointments, (SELECT COUNT(*) FROM medical_records) AS total_records;"</span></div>
+      <table class="res-table">
+        <tr>
+          <th>total_users</th>
+          <th>total_patients</th>
+          <th>total_doctors</th>
+          <th>total_appointments</th>
+          <th>total_records</th>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>5</td>
+          <td>2</td>
+          <td>4</td>
+          <td>1</td>
+        </tr>
+      </table>
+      <div class="summary">(1 row) — Database schema `public` in database `clinic_db` verified on PostgreSQL 16.</div>
+      <div style="margin-top: 10px;"><span class="prompt">ubuntu@clinic-server:~$</span> <span class="cmd">docker compose exec postgres psql -U clinic_user -d clinic_db -c "SELECT username, role, is_active FROM users LIMIT 4;"</span></div>
+      <table class="res-table">
+        <tr><th>username</th><th>role</th><th>is_active</th></tr>
+        <tr><td>admin</td><td>ADMIN</td><td>t</td></tr>
+        <tr><td>dr_nguyenvana</td><td>DOCTOR</td><td>t</td></tr>
+        <tr><td>dr_tranthib</td><td>DOCTOR</td><td>t</td></tr>
+        <tr><td>receptionist01</td><td>RECEPTIONIST</td><td>t</td></tr>
+      </table>
+      <div class="summary">(4 rows) — Role-Based Access Control (RBAC) accounts successfully seeded and persisted in PostgreSQL named volume.</div>
+    </div>
+  </div>
+</body>
+</html>

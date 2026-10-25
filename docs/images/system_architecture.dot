@@ -1,0 +1,131 @@
+
+digraph G {
+    graph [
+        rankdir=TB,
+        bgcolor="#ffffff",
+        nodesep=0.65,
+        ranksep=0.8,
+        splines=spline,
+        fontname="DejaVu Sans",
+        dpi=300
+    ];
+
+    node [
+        fontname="DejaVu Sans",
+        fontsize=13,
+        shape=box,
+        style="filled,rounded",
+        penwidth=1.8,
+        margin="0.32,0.18",
+        color="#334155"
+    ];
+
+    edge [
+        fontname="DejaVu Sans",
+        fontsize=11,
+        color="#64748b",
+        fontcolor="#1e293b",
+        penwidth=1.4,
+        arrowsize=0.8
+    ];
+
+    // Node Definitions
+    // 1. Top Node
+    user [
+        label="Trình duyệt người dùng",
+        fillcolor="#eef4ff",
+        color="#3b4d6b"
+    ];
+
+    // 2. Second Row
+    nginx [
+        label="Nginx\nCổng 80",
+        fillcolor="#e0f2fe",
+        color="#334155"
+    ];
+
+    grafana [
+        label="Grafana\nCổng 3000",
+        fillcolor="#f3e8ff",
+        color="#334155"
+    ];
+
+    pgadmin [
+        label="pgAdmin 4\nCổng 5050",
+        fillcolor="#fef3c7",
+        color="#334155"
+    ];
+
+    // 3. Third Row
+    prometheus [
+        label="Prometheus\nCổng 9090",
+        fillcolor="#f3e8ff",
+        color="#334155"
+    ];
+
+    app [
+        label="Ứng dụng Phòng khám\nDjango 5 và React SPA",
+        fillcolor="#dcfce7",
+        color="#334155"
+    ];
+
+    postgres [
+        label="PostgreSQL 16\nCơ sở dữ liệu",
+        fillcolor="#fef3c7",
+        color="#334155"
+    ];
+
+    // 4. Fourth Row
+    exporters [
+        label="Nginx, postgres-exporter\nvà cAdvisor",
+        fillcolor="#f3e8ff",
+        color="#334155"
+    ];
+
+    promtail [
+        label="Promtail\nThu thập log",
+        fillcolor="#fef3c7",
+        color="#334155"
+    ];
+
+    loki [
+        label="Loki\nLưu trữ log",
+        fillcolor="#fef3c7",
+        color="#334155"
+    ];
+
+    // Vertical alignments
+    exporters -> prometheus [label="Metrics", weight=10, dir=forward];
+    app -> promtail [label="Log", style=dashed, weight=10];
+    pgadmin -> postgres [weight=10];
+
+    // Horizontal ordering for each rank
+    { rank=same; user }
+    { rank=same; nginx; grafana; pgadmin }
+    { rank=same; prometheus; app; postgres }
+    { rank=same; exporters; promtail; loki }
+
+    // Invisible edges to lock horizontal order
+    nginx -> grafana -> pgadmin [style=invis, weight=2];
+    prometheus -> app -> postgres [style=invis, weight=5];
+    exporters -> promtail -> loki [style=invis, weight=5];
+
+    // User access edges
+    user -> nginx [label="HTTP"];
+    user -> grafana [label="Giám sát", style=dashed];
+    user -> pgadmin [label="Quản trị", style=dashed];
+
+    // Nginx to App: connect direct south to north-west
+    nginx:se -> app:nw [label="Chuyển tiếp", constraint=false];
+
+    // App to Prometheus & PostgreSQL
+    app -> prometheus [label="Metrics", constraint=false];
+    app -> postgres [label="Dữ liệu", constraint=false];
+
+    // Grafana Queries
+    grafana -> prometheus [label="Truy vấn", constraint=false];
+    grafana -> loki [label="LogQL", constraint=false];
+
+    // Promtail pushes log to Loki
+    promtail -> loki [label="Đẩy log", constraint=false];
+}

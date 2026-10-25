@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; padding: 16px; background: #0f172a; width: 850px; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; font-size: 13px; color: #f1f5f9; box-sizing: border-box; }
+  .term { background: #1e1e1e; border: 1px solid #334155; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); overflow: hidden; }
+  .term-header { background: #2d3748; padding: 10px 14px; display: flex; align-items: center; gap: 8px; }
+  .btn { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .btn-r { background: #ef4444; } .btn-y { background: #f59e0b; } .btn-g { background: #10b981; }
+  .term-title { margin-left: 10px; color: #94a3b8; font-size: 12px; }
+  .term-body { padding: 16px; line-height: 1.6; }
+  .prompt { color: #38bdf8; font-weight: bold; }
+  .cmd { color: #facc15; }
+  .highlight { color: #4ade80; font-weight: bold; }
+  .info { color: #94a3b8; font-size: 12px; margin-top: 6px; }
+</style>
+</head>
+<body>
+  <div class="term">
+    <div class="term-header">
+      <span class="btn btn-r"></span><span class="btn btn-y"></span><span class="btn btn-g"></span>
+      <span class="term-title">ubuntu@clinic-server: ~/clinic-management (Container Hardening Check)</span>
+    </div>
+    <div class="term-body">
+      <div><span class="prompt">ubuntu@clinic-server:~$</span> <span class="cmd">docker compose exec backend id</span></div>
+      <div class="highlight">uid=1000(clinicuser) gid=1000(clinicuser) groups=1000(clinicuser)</div>
+      <div class="info">-&gt; Verified: Backend container is running as unprivileged non-root user (UID 1000), preventing container breakout exploits.</div>
+      <div style="margin-top: 12px;"><span class="prompt">ubuntu@clinic-server:~$</span> <span class="cmd">ls -la .env</span></div>
+      <div class="highlight">-rw------- 1 ubuntu ubuntu 1171 Oct 25 13:57 .env</div>
+      <div class="info">-&gt; Verified: Environment credentials file (.env) is hardened with chmod 600 (owner read-write only).</div>
+    </div>
+  </div>
+</body>
+</html>
