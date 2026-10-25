@@ -1,0 +1,16 @@
+{
+  "name": "clinic-management-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Giao diện Quản lý Phòng khám / Bệnh viện Phúc An",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vite": "^5.2.0"
+  }
+}

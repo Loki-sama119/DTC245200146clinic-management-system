@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+venv
+ENV
+.coverage
+htmlcov
+.pytest_cache
+*.log
+local_settings.py

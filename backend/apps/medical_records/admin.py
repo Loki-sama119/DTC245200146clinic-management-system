@@ -1,0 +1,7 @@
+from django.contrib import admin
+from .models import MedicalRecord
+
+@admin.register(MedicalRecord)
+class MedicalRecordAdmin(admin.ModelAdmin):
+    list_display = ('code', 'appointment', 'patient', 'doctor', 'diagnosis', 'created_at')
+    search_fields = ('code', 'patient__full_name', 'doctor__code', 'diagnosis')
