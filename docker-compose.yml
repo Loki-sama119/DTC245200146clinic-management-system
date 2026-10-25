@@ -1,5 +1,5 @@
 # ==============================================================================
-# CLINIC MANAGEMENT SYSTEM — DOCKER COMPOSE ORCHESTRATION (NGINX REVERSE PROXY)
+# CLINIC MANAGEMENT SYSTEM — PROMETHEUS + GRAFANA MONITORING
 # ==============================================================================
 
 services:
@@ -72,9 +72,63 @@ services:
       - backend
       - frontend
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: clinic_postgres_exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-clinic_user}:${POSTGRES_PASSWORD:-clinic_secure_password_2026}@postgres:5432/${POSTGRES_DB:-clinic_db}?sslmode=disable"
+    depends_on:
+      - postgres
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: clinic_cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: clinic_prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - clinic_prometheus_data:/prometheus
+    depends_on:
+      - postgres-exporter
+      - cadvisor
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: clinic_grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-Admin@Grafana2026}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - clinic_grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+
 volumes:
   clinic_pgdata:
   clinic_pgadmin_data:
   backend_static:
   backend_logs:
   nginx_logs:
+  clinic_prometheus_data:
+  clinic_grafana_data:
