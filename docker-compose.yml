@@ -1,7 +1,5 @@
 # ==============================================================================
-# CLINIC MANAGEMENT SYSTEM — DOCKER COMPOSE ORCHESTRATION (BASE WEB & DATABASE)
-# Học phần: Triển khai và Quản trị Hệ thống Phần mềm
-# Sinh viên: Nguyễn Văn Thắng - DTC245200146 (Đề 8)
+# CLINIC MANAGEMENT SYSTEM — DOCKER COMPOSE ORCHESTRATION (NGINX REVERSE PROXY)
 # ==============================================================================
 
 services:
@@ -17,8 +15,6 @@ services:
     volumes:
       - clinic_pgdata:/var/lib/postgresql/data/pgdata
       - ./database/init:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "5432:5432"
 
   pgadmin:
     image: dpage/pgadmin4:8.4
@@ -43,8 +39,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    ports:
-      - "8000:8000"
     volumes:
       - ./backend:/app
       - backend_static:/app/staticfiles
@@ -58,13 +52,29 @@ services:
       dockerfile: Dockerfile
     container_name: clinic_frontend
     restart: unless-stopped
-    ports:
-      - "3001:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
     depends_on:
       - backend
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: clinic_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - backend_static:/var/www/static:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+      - frontend
 
 volumes:
   clinic_pgdata:
   clinic_pgadmin_data:
   backend_static:
   backend_logs:
+  nginx_logs:
